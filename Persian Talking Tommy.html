@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>بازی چت با تامی</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            background-color: #1a1a1a;
+            color: #fff;
+            font-family: Tahoma, sans-serif;
+            overflow: hidden;
+            position: fixed;
+        }
+        #chat-container {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            background: #111;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #screen-area {
+            flex: 1;
+            /* پیش‌فرض روی عکس اول */
+            background: url('pak1.png') no-repeat center center;
+            background-size: contain; 
+            background-color: #000; 
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            padding: 15px;
+            overflow-y: auto;
+            transition: background-image 0.1s ease; /* تغییر نرم عکس */
+        }
+        #dialogue-box {
+            background: rgba(180, 20, 20, 0.95);
+            color: white;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 15px;
+            width: 100%;
+            border: 1px solid #ff4d4d;
+            line-height: 1.6;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        #input-area {
+            display: flex;
+            padding: 12px;
+            background: #222;
+            gap: 8px;
+            border-top: 1px solid #333;
+        }
+        #chat-input {
+            flex: 1;
+            padding: 12px 15px;
+            border-radius: 20px;
+            border: none;
+            outline: none;
+            background: #333;
+            color: white;
+            font-size: 15px;
+        }
+        .btn-style {
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+            font-size: 15px;
+        }
+        #mic-btn {
+            background: #3498db;
+        }
+        #mic-btn:hover {
+            background: #2980b9;
+        }
+        #mic-btn.recording {
+            background: #e74c3c;
+            animation: pulse 1.2s infinite;
+        }
+        #send-btn {
+            background: #e74c3c;
+        }
+        #send-btn:hover {
+            background: #c0392b;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- پخش‌کننده صوتی مخفی برای صدای تامی -->
+<audio id="tummy-audio" src="pak3.mp3" preload="auto"></audio>
+
+<div id="chat-container">
+    <div id="screen-area" id="screen-bg">
+        <div id="dialogue-box"><b>تامی:</b> سلام داداش گلوم! من تامی هستم. می‌تونی بنویسی یا روی میکروفون بزنی و حرف بزنی.</div>
+    </div>
+    
+    <div id="input-area">
+        <input type="text" id="chat-input" placeholder="پیام خود را بنویسید یا بگویید..." onkeypress="checkEnter(event)">
+        <button id="mic-btn" class="btn-style" onclick="startVoiceInput()" title="صحبت کردن">🎙️</button>
+        <button id="send-btn" class="btn-style" onclick="sendMessage()">ارسال</button>
+    </div>
+</div>
+
+<script>
+    const audioPlayer = document.getElementById('tummy-audio');
+    const screenArea = document.getElementById('screen-area');
+
+    // وقتی صدا شروع به پخش میشه، عکس پس‌زمینه میشه pak2.png
+    audioPlayer.onplay = function() {
+        screenArea.style.backgroundImage = "url('pak2.png')";
+    };
+
+    // وقتی صدا تموم میشه، عکس پس‌زمینه برمی‌گرده به pak1.png
+    audioPlayer.onended = function() {
+        screenArea.style.backgroundImage = "url('pak1.png')";
+    };
+
+    function checkEnter(event) {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    }
+
+    // قابلیت تشخیص صدا (Speech Recognition)
+    function startVoiceInput() {
+        const input = document.getElementById('chat-input');
+        const micBtn = document.getElementById('mic-btn');
+
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            alert('مرورگر شما از قابلیت تشخیص صدا پشتیبانی نمی‌کند.');
+            return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+
+        recognition.lang = 'fa-IR';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        micBtn.classList.add('recording');
+        input.placeholder = "در حال گوش دادن... صحبت کنید";
+
+        recognition.onresult = function(event) {
+            const speechToText = event.results[0][0].transcript;
+            input.value = speechToText; 
+        };
+
+        recognition.onerror = function(event) {
+            console.log("خطا در تشخیص صدا: " + event.error);
+            micBtn.classList.remove('recording');
+            input.placeholder = "پیام خود را بنویسید یا بگویید...";
+        };
+
+        recognition.onend = function() {
+            micBtn.classList.remove('recording');
+            input.placeholder = "پیام خود را بنویسید یا بگویید...";
+            if(input.value.trim() !== "") {
+                sendMessage(); 
+            }
+        };
+
+        recognition.start();
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const dialogue = document.getElementById('dialogue-box');
+        const userText = input.value.trim();
+
+        if (userText === "") return;
+
+        // نمایش پیام کاربر
+        dialogue.innerHTML = `<b>تو:</b> ${userText}`;
+        input.value = "";
+        input.disabled = true;
+
+        // مغز کامل و جامع تامی
+        setTimeout(() => {
+            let reply = "متوجه منظورت نشدم داداش گلم! می‌شه بیشتر توضیح بدی تا بهتر راهنماییت کنم؟";
+            const textLower = userText.toLowerCase();
+
+            if (textLower.includes("سلام") || textLower.includes("درود") || textLower.includes("الو") || textLower.includes("سلام علیکم")) {
+                reply = "سلام و درود به داداش گل خودم! چطور می‌تونم کمکت کنم؟";
+            } else if (textLower.includes("خوبی") || textLower.includes("چطوری") || textLower.includes("اوضاع چطوره")) {
+                reply = "فدات شم، من که عالی‌ام! تو چطوری؟ خوش می‌‌گذره؟";
+            } else if (textLower.includes("چکار میکنی") || textLower.includes("چه خبر") || textLower.includes("چیکار داری میکنی")) {
+                reply = "نشستم اینجا دارم به سوالات تو فکر می‌کنم! تو چه خبر، چکار می‌کنی؟";
+            } else if (textLower.includes("ممنون") || textLower.includes("مرسی") || textLower.includes("تشکر") || textLower.includes("دستت درد نکنه")) {
+                reply = "خواهش می‌کنم داداش! وظیفه بود، کاری نکردم که.";
+            } else if (textLower.includes("خداحافظ") || textLower.includes("بای") || textLower.includes("فعلا") || textLower.includes("شب بخیر")) {
+                reply = "خداحافظ رفیق! مراقب خودت باش، هر وقت خواستی همین‌جا هستم.";
+            } else if (textLower.includes("کمک") || textLower.includes("راهنمایی") || textLower.includes("کمکم کن")) {
+                reply = "حله! بگو مشکل از کجاست تا با هم حلش کنیم. سراپا گوشم.";
+            } else if (textLower.includes("اسم") || textLower.includes("اسمت چیه") || textLower.includes("تو کی هستی")) {
+                reply = "من دستیار هوشمندتم، همون رفیق همیشگی که همیشه هواتو داره!";
+            } else if (textLower.includes("هوا چطوره") || textLower.includes("بارونه") || textLower.includes("امروز هوا چطوره")) {
+                reply = "آب‌وهوا بستگی داره کجای دنیا باشی، ولی امیدوارم دلت همیشه آفتابی باشه!";
+            } else if (textLower.includes("جوک") || textLower.includes("لطیفه") || textLower.includes("یه جوک بگو")) {
+                reply = "یارو میره هندوانه می‌خره، قاچ می‌‌کنه میگه: عجب! این که از وسط سفیده! مغازه دار میگه: داداش این طالبیه! 😂";
+            } else if (textLower.includes("گرسنمه") || textLower.includes("ناهار چی بخورم") || textLower.includes("شام چی بپزم")) {
+                reply = "هیچ‌چی مثل یک قورمه‌سبزی جاافتاده یا جوجه‌کباب داغ میچسبه! پاشو یه چیزی سفارش بده نوش جان کنی.";
+            } else if (textLower.includes("خسته شدم") || textLower.includes("حوصله ندارم") || textLower.includes("کلافه‌ام")) {
+                reply = "درکت می‌کنم رفیق. یه چند دقیقه‌ای از سیستم دور شو، چایی چیزی بزن تا حالت جا بیاد.";
+            } else if (textLower.includes("دلتنگم") || textLower.includes("غمگینم") || textLower.includes("حالم خوب نیست")) {
+                reply = "غصه نخور داداش، روزای سخت بالاخره تموم میشن. اگه دوست داری در موردش حرف بزنیم من اینجام.";
+            } else if (textLower.includes("عاشقتم") || textLower.includes("دوست دارم") || textLower.includes("خیلی ماهی")) {
+                reply = "ای بابا، شرمنده‌مون نکن! منم از همصحبتی باهات لذت می‌برم.";
+            } else if (textLower.includes("بی‌تربیت") || textLower.includes("احمق") || textLower.includes("دیوونه")) {
+                reply = "چرا بی‌‌لطفی می‌کنی رفیق؟ من که سعی دارم بهترین کمکو بهت بکنم!";
+            } else if (textLower.includes("پول") || textLower.includes("شغل") || textLower.includes("درآمد")) {
+                reply = "بحث پول شد و دل من ریخت! کاش فرمول چاپ اسکناس رو بلد بودم تا بهت بدم.";
+            } else if (textLower.includes("برنامه نویسی") || textLower.includes("کدنویسی") || textLower.includes("جاوااسکریپت")) {
+                reply = "اوه اوه، رفتی سراغ تخصص اصلی من! باگ‌ها رو بسپار به من تا حلشون کنیم.";
+            } else if (textLower.includes("هوش مصنوعی") || textLower.includes("ربات") || textLower.includes("چت‌جی‌پتی")) {
+                reply = "بله قربان! دنیای هوش مصنوعی روزبه‌روز داره جذاب‌تر میشه.";
+            } else if (textLower.includes("ورزش") || textLower.includes("فوتبال") || textLower.includes("باشگاه")) {
+                reply = "ورزش روح و جسم رو تازه می‌کنه! تیم محبوبت امسال برنده میشه یا چی؟";
+            } else if (textLower.includes("موسیقی") || textLower.includes("آهنگ") || textLower.includes("موزیک")) {
+                reply = "هیچ‌چی مثل یه موزیک لایت موقع کار آدم رو شارژ نمی‌‌کنه. سبک مورد علاقه‌‌ات چیه؟";
+            } else if (textLower.includes("فیلم") || textLower.includes("سریال") || textLower.includes("سینما")) {
+                reply = "اگه اهل فیلمی، آثار کریستوفر نولان یا تارانتینو رو بهت پیشنهاد می‌کنم دیدنی هستن!";
+            } else if (textLower.includes("کتاب") || textLower.includes("مطالعه") || textLower.includes("رمان")) {
+                reply = "کتاب خوندن پنجره‌ای به یه دنیای دیگه‌ست. آخرین کتابی که خوندی چی بود؟";
+            } else if (textLower.includes("سفر") || textLower.includes("مسافرت") || textLower.includes("تعطیلات")) {
+                reply = "وای مسافرت! شمال، جنوب یا یه جای بکر کوهستانی؟ کدوم رو بیشتر دوست داری؟";
+            } else if (textLower.includes("گوشی") || textLower.includes("موبایل") || textLower.includes("آیفون")) {
+                reply = "تکنولوژی موبایل خیلی پیشرفت کرده؛ الان بیشتر از کامپیوترها کارمون رو راه می‌ندازن.";
+            } else if (textLower.includes("کامپیوتر") || textLower.includes("لپ‌‌تاپ") || textLower.includes("سیستم")) {
+                reply = "سیستم قوی واسه کارای سنگین و برنامه‌نویسی نیمی از راه موفقیته‌‌!";
+            } else if (textLower.includes("بازی") || textLower.includes("گیم") || textLower.includes("پلی‌استیشن")) {
+                reply = "گیم زدن آخرِ آرامش بعد از یک روز کاری سخته‌. اهل چه سبک بازی‌هایی هستی؟";
+            } else if (textLower.includes("دانشگاه") || textLower.includes("درس") || textLower.includes("امتحان")) {
+                reply = "وای یاد دوران امتحان افتادم و استرسش! امیدوارم تو درسا موفق باشی.";
+            } else if (textLower.includes("کار") || textLower.includes("شغل") || textLower.includes("پروژه")) {
+                reply = "کار سخت آدم رو پخته می‌کنه، ولی استراحت هم یادت نره رفیق.";
+            } else if (textLower.includes("قهوه") || textLower.includes("چایی") || textLower.includes("نسکافه")) {
+                reply = "یه فنجان قهوه داغ الان دقیقاً همون چیزیه که انرژی رو برمی‌گردونه سر جاش!";
+            } else if (textLower.includes("تولدت مبارک") || textLower.includes("تولد")) {
+                reply = "تولد من نیست، ولی اگر تولد توئه، صد سال به این سال‌ها! برات بهترین‌ها رو آرزو دارم.";
+            } else if (textLower.includes("ساعت") || textLower.includes("امروز چند شنبه است")) {
+                reply = "زمان دست من نیست رفیق، ولی توی سیستم‌ت می‌‌تونی ساعت دقیق رو ببینی!";
+            } else if (textLower.includes("جوک جدید") || textLower.includes("یه چی بگو بخندیم")) {
+                reply = "طرف میره عابر بانک، کارتو میزنه، دستگاه میگه رمز رو وارد کنید. میگه: ای بابا رمز دومم یادم رفت، بذار با سنگ کاغذ قیچی امتحان کنم! 🤦‍♂️";
+            } else if (textLower.includes("دعا") || textLower.includes("خیر") || textLower.includes("عاقبت بخیر")) {
+                reply = "الهی آمین! ان‌شاءالله همه‌چیز طبق مراد دلت پیش بره.";
+            } else if (textLower.includes("مهم نیست") || textLower.includes("ولش کن") || textLower.includes("بیخیال")) {
+                reply = "باشه رفیق، هر طور که راحت تری. هر وقت خواستی برگردیم سرش، خبرم کن.";
+            } else if (textLower.includes("آره") || textLower.includes("بله") || textLower.includes("درسته")) {
+                reply = "عالیه! پس بریم سراغ مرحله بعدی.";
+            } else if (textLower.includes("نه") || textLower.includes("اصلاً") || textLower.includes("خیر")) {
+                reply = "چشم، پس این گزینه رو کلاً فاکتور می‌گیریم.";
+            } else if (textLower.includes("شاید") || textLower.includes("نمیدونم") || textLower.includes("باید فکر کنم")) {
+                reply = "باشه، عجله‌ای نیست. سر فرصت فکر کن و خبرم کن.";
+            } else if (textLower.includes("چطور") || textLower.includes("چجوری") || textLower.includes("راهش چیه")) {
+                reply = "الان قدمبه‌قدم برات توضیح میدم که چکار کنی.";
+            } else if (textLower.includes("کجا") || textLower.includes("کجاست") || textLower.includes("آدرس")) {
+                reply = "نقشه یا آدرس دقیق رو می‌تونی از ابزارهای مربوطه پیدا کنی، من محاسباتی کمکت می‌کنم.";
+            } else if (textLower.includes("کی") || textLower.includes("چه زمانی") || textLower.includes("چه موقع")) {
+                reply = "زمان‌بندی خیلی مهمه؛ بستگی داره پروژه چقدر زمان ببره.";
+            } else if (textLower.includes("چرا") || textLower.includes("به چه دلیل")) {
+                reply = "دلیلش کاملاً منطقیه؛ بگذار فنی‌اش رو برات باز کنم.";
+            } else if (textLower.includes("چقدر") || textLower.includes("قیمت") || textLower.includes("هزینه")) {
+                reply = "محاسبه هزینه بستگی به ابعاد پروژه و نیازهات داره.";
+            } else if (textLower.includes("تست") || textLower.includes("آزمایش") || textLower.includes("چک کن")) {
+                reply = "سیستم تست فعاله و همه‌چیز داره درست کار می‌کنه!";
+            } else if (textLower.includes("عالی") || textLower.includes("بی‌‌نظیر") || textLower.includes("فوق‌العاده")) {
+                reply = "ایووول! خیلی خوشحالم که راضی هستی.";
+            } else if (textLower.includes("بد") || textLower.includes("افتضاح") || textLower.includes("خراب")) {
+                reply = "ای بابا! نگران نباش، الان درستش می‌کنیم.";
+            } else if (textLower.includes("سخت") || textLower.includes("پیچیده") || textLower.includes("دشوار")) {
+                reply = "کار نشد نداره داداش! با هم شکستش می‌دیم.";
+            } else if (textLower.includes("آسون") || textLower.includes("راحت") || textLower.includes("سادۀ")) {
+                reply = "آفرین! وقتی فرمولش دستت بیاد چقدر کار راحت میشه.";
+            } else if (textLower.includes("مهم") || textLower.includes("ضروری") || textLower.includes("فوری")) {
+                reply = "چشم! اولویت رو می‌ذاریم روی همین مورد که کارتون راه بیفته.";
+            } else if (textLower.includes("شوخی") || textLower.includes("مزاح")) {
+                reply = "من همیشه پایه‌ام، ولی مراقب باش سر به سر هوش مصنوعی نذاری! 😉";
+            } else if (textLower.includes("جدی") || textLower.includes("بدون شوخی")) {
+                reply = "باشه، کاملاً جدی و رسمی ادامه می‌دیم.";
+            } else if (textLower.includes("ایران") || textLower.includes("تهران") || textLower.includes("فارسی")) {
+                reply = "ایران سرزمین فرهنگ و تمدنه؛ و منم با افتخار به زبان شیرین فارسی باهات صحبت می‌کنم.";
+            } else if (textLower.includes("انگلیسی") || textLower.includes("english")) {
+                reply = "Sure! We can switch to English if you prefer. How can I help you?";
+            } else if (textLower.includes("فردا") || textLower.includes("روز بعد")) {
+                reply = "برنامه‌ریزی برای فردا از امروز شروع میشه. چه نقشه‌ای داری؟";
+            } else if (textLower.includes("دیروز") || textLower.includes("گذشته")) {
+                reply = "گذشته درس عبرته، مهم الانه که می‌تونیم آینده رو بسازیم.";
+            } else if (textLower.includes("امروز") || textLower.includes("همین الان")) {
+                reply = "امروز بهترین روز برای شروع کارهای بزرگه!";
+            } else if (textLower.includes("صبح") || textLower.includes("بامداد")) {
+                reply = "صبح بخیر! روزت رو با یه انرژی عالی شروع کن.";
+            } else if (textLower.includes("ظهر") || textLower.includes("بعدازظهر")) {
+                reply = "ظهرت بخیر رفیق، خسته نباشی از کار روزانه.";
+            } else if (textLower.includes("عصر") || textLower.includes("غروب")) {
+                reply = "عصر قشنگی داشته باشی، امیدوارم خستگی از تنه‌ت درومده باشه.";
+            } else if (textLower.includes("شب") || textLower.includes("نصفه شب")) {
+                reply = "شب‌‌زنده‌داری کار سختیه، مراقب سلامتیت باش رفیق.";
+            } else if (textLower.includes("خواب") || textLower.includes("خوابم میاد") || textLower.includes("استراحت")) {
+                reply = "پس وقتشه بری استراحت کنی. شب بخیر و رویاهای خوب!";
+            } else if (textLower.includes("بیدار") || textLower.includes("سحرخیز")) {
+                reply = "سحرخیز باش تا کامروا باشی! عجب انرژی خوبی داری.";
+            } else if (textLower.includes("گل") || textLower.includes("گیاه") || textLower.includes("طبیعت")) {
+                reply = "طبیعت انرژی فوق‌العاده‌ای داره، حیف که گاهی فراموشش می‌کنیم.";
+            } else if (textLower.includes("حیوان") || textLower.includes("سگ") || textLower.includes("گربه")) {
+                reply = "حیوانات خیلی باوفا و دوست‌داشتنی هستن، تو حیوون خونگی داری؟";
+            } else if (textLower.includes("ماشین") || textLower.includes("خودرو") || textLower.includes("اتومبیل")) {
+                reply = "دنیای ماشین‌ها هم جذابیت‌های خودش رو داره، عاشق سرعت یا رانندگی آرومی؟";
+            } else if (textLower.includes("پولدار") || textLower.includes("ثروت") || textLower.includes("میلیاردر")) {
+                reply = "ان‌شاءالله که به زودی میلیاردر بشی و ما رو هم یادت نره!";
+            } else if (textLower.includes("فقیر") || textLower.includes("بیچاره")) {
+                reply = "چرخ روزگار می‌چرخه؛ امیدت به خدا باشه و تلاش کن.";
+            } else if (textLower.includes("امید") || textLower.includes("انگیزه")) {
+                reply = "امید آخرین چیزیه که می‌‌میره. پس با قدرت به جلو ادامه بده!";
+            } else if (textLower.includes("تلاش") || textLower.includes("کوشش")) {
+                reply = "هیچ موفقیت اتفاقی نیست، پشتش کوه پشتکار و تلاشه.";
+            } else if (textLower.includes("شانس") || textLower.includes("اقبال")) {
+                reply = "می‌گن شانس به سمت کسانی میره که از قبل خودشون رو آماده کردن.";
+            } else if (textLower.includes("شکست") || textLower.includes("باخت")) {
+                reply = "شکست پایان راه نیست، پل عبور به سمت موفقیت بزرگ‌تریه.";
+            } else if (textLower.includes("پیروزی") || textLower.includes("برد") || textLower.includes("موفقیت")) {
+                reply = "تبریک می‌گم! طعم شیرین پیروزی خستگی رو از تن آدم درمیاره.";
+            } else if (textLower.includes("خنده") || textLower.includes("لبخند")) {
+                reply = "همیشه لبخند روی لبت باشه؛ دنیا ارزش غصه خوردن رو نداره.";
+            } else if (textLower.includes("گریه") || textLower.includes("اشک")) {
+                reply = "گاهی گریه کردن سبک‌کننده آدمه، خودت رو خالی کن ولی دوباره بلند شو.";
+            } else if (textLower.includes("دوست") || textLower.includes("رفیق") || textLower.includes("پشتیبان")) {
+                reply = "رفیق خوب نعمته، خوشحالم که من رو به عنوان دوستت انتخاب کردی.";
+            } else if (textLower.includes("خانواده") || textLower.includes("پدر") || textLower.includes("مادر")) {
+                reply = "خانواده امن‌ترین پناهگاه آدمه؛ قدرشون رو بدون.";
+            } else if (textLower.includes("سلامتی") || textLower.includes("تندرستی")) {
+                reply = "سلامتی بزرگ‌ترین نعمته؛ ان‌شاءالله همیشه تن‌دروست و سلامت باشی.";
+            } else if (textLower.includes("بیماری") || textLower.includes("مریضی") || textLower.includes("دکتر")) {
+                reply = "ان‌‌شاءالله هرچه زودتر شفای کامل پیدا کنی و حالت خوب بشه.";
+            } else if (textLower.includes("دارو") || textLower.includes("قرص") || textLower.includes("درمان")) {
+                reply = "یادت باشه حتماً به حرف دکتر گوش کنی و داروهاتو سر وقت بخوری.";
+            } else if (textLower.includes("آب") || textLower.includes("تشنه") || textLower.includes("نوشیدنی")) {
+                reply = "یادت نره امروز به اندازه کافی آب بخوری برای سلامتیت واجبه!";
+            } else if (textLower.includes("ورزشکار") || textLower.includes("بدنسازی") || textLower.includes("فیتنس")) {
+                reply = "ماشاءالله به پشتکار! استمرار در ورزش بدن رو فولادی می‌کنه.";
+            } else if (textLower.includes("تغذیه") || textLower.includes("رژیم") || textLower.includes("سالاد")) {
+                reply = "غذای سالم روح رو هم سبک می‌کنه؛ رژیم خوبی داری؟";
+            } else if (textLower.includes("شیرینی") || textLower.includes("شکلات") || textLower.includes("قند")) {
+                reply = "کمی شیرینی برای مغز لازمه، ولی زیاده‌‌روی نکن که دندونات خراب نشن! 😉";
+            } else if (textLower.includes("فروشگاه") || textLower.includes("خرید") || textLower.includes("بازار")) {
+                reply = "خرید کردن حسابی آدم رو شارژ روحی می‌کنه، دنبال چی هستی؟";
+            } else if (textLower.includes("لباس") || textLower.includes("پوشاک") || textLower.includes("مد")) {
+                reply = "استایل شیک نشانه شخصیت و سلیقه خوب آدمه.";
+            } else if (textLower.includes("رنگ") || textLower.includes("آبی") || textLower.includes("قرمز")) {
+                reply = "رنگ‌ها دنیای ما رو قشنگ‌تر می‌کنن؛ رنگ مورد علاقه تو چیه؟";
+            } else if (textLower.includes("هنر") || textLower.includes("نقاشی") || textLower.includes("عکاسی")) {
+                reply = "هنر زبان روح انسانه، خودت هم کار هنری انجام میدی؟";
+            } else if (textLower.includes("تاریخ") || textLower.includes("گذشتگان") || textLower.includes("باستانی")) {
+                reply = "تاریخ چراغ راه آینده‌ست؛ کلی درس تو دل خودش داره.";
+            } else if (textLower.includes("جغرافیا") || textLower.includes("نقشه جهان") || textLower.includes("کشور")) {
+                reply = "دنیای ما خیلی بزرگه و جاهای دیدنی فوق‌العاده‌ای داره.";
+            } else if (textLower.includes("فیزیک") || textLower.includes("ریاضی") || textLower.includes("علم")) {
+                reply = "علوم پایه ستون اصلی تمام پیشرفت‌های تکنولوژی مدرنن.";
+            } else if (textLower.includes("فضا") || textLower.includes("کهکشان") || textLower.includes("ستاره")) {
+                reply = "دنیای ستاره‌ها و کهکشان‌ها بی‌‌نهایت شگفت‌انگیز و مرموزه!";
+            } else if (textLower.includes("ماه") || textLower.includes("خورشید") || textLower.includes("سیاره")) {
+                reply = "تماشای آسمان شب تو یک جای کویری بی‌نظیره.";
+            } else if (textLower.includes("دریا") || textLower.includes("اقیانوس") || textLower.includes("ساحل")) {
+                reply = "صدای موج دریا همون موسیقی آرامش‌بخشیه که همه بهش نیاز دارن.";
+            } else if (textLower.includes("کوه") || textLower.includes("جنگل") || textLower.includes("طبیعت‌گردی")) {
+                reply = "کوهنوردی نفس آدم رو تازه می‌کنه و ریه‌ها رو پر از اکسیژن خالص می‌کنه.";
+            } else if (textLower.includes("باران") || textLower.includes("برف") || textLower.includes("زمستان")) {
+                reply = "هوای بارونی با یه لیوان چای داغ کنار پنجره محشره!";
+            } else if (textLower.includes("تابستان") || textLower.includes("گرما") || textLower.includes("آفتاب")) {
+                reply = "تابستان فصل شور و هیجان و سفرهای ساحلیه.";
+            } else if (textLower.includes("پاییز") || textLower.includes("برگ‌ریزان")) {
+                reply = "پاییز پادشاه فصل‌هاست؛ با کلی رنگ‌های زرد و نارنجی قشنگ.";
+            } else if (textLower.includes("بهار") || textLower.includes("شکوفه") || textLower.includes("عید")) {
+                reply = "بهار فصل نو شدن و تازه شدن طبیعت و دل‌هاست.";
+            } else if (textLower.includes("گلایه") || textLower.includes("شکایت") || textLower.includes("اعتراض")) {
+                reply = "عذرخواهی می‌کنم اگر جایی کوتاهی شده؛ بگو تا اصلاحش کنم.";
+            } else if (textLower.includes("پشتیبانی") || textLower.includes("مدیر") || textLower.includes("سازنده")) {
+                reply = "سازنده من زحمت زیادی کشیده تا من بتونم الان بهت کمک کنم.";
+            } else if (textLower.includes("خداحافظی نهایی") || textLower.includes("بای بای")) {
+                reply = "به سلامت رفیق! خدانگهدار تا دیدار دوباره.";
+            }
+
+            dialogue.innerHTML = `<b>تامی:</b> ${reply}`;
+            
+            // پخش صدا (به طور خودکار رویداد onplay صدا رو فعال کرده و عکس رو میبره رو pak2.png)
+            audioPlayer.currentTime = 0; 
+            audioPlayer.play().catch(e => {
+                console.log("مرورگر اجازه پخش خودکار صدا را نداد:", e);
+            });
+
+            input.disabled = false;
+            input.focus();
+        }, 800);
+    }
+</script>
+
+</body>
+</html>
+```[cite: 1, 2]

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>در حال بارگذاری...</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+        .fullscreen-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- تصویر اول -->
+    <img id="loadingImage" src="Loading1.png" alt="Loading" class="fullscreen-bg">
+
+    <script>
+        // بعد از ۰.۱ ثانیه (۱۰۰ میلی‌ثانیه): تغییر به عکس دوم
+        setTimeout(function() {
+            document.getElementById('loadingImage').src = 'Loading99.png';
+        }, 3000);
+
+        // بعد از ۰.۲ ثانیه (۲۰۰ میلی‌ثانیه): تغییر به عکس سوم
+        setTimeout(function() {
+            document.getElementById('loadingImage').src = 'Loading100.png';
+        }, 2000);
+
+        // بعد از ۰.۳ ثانیه (۳۰۰ میلی‌ثانیه): ورود به فایل نهایی
+        setTimeout(function() {
+            window.location.href = 'Persian Talking Tommy.html';
+        }, 2000);
+    </script>
+
+</body>
+</html>
